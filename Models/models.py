@@ -1,26 +1,35 @@
-import seaborn as sns
-import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
+import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
-from imblearn.over_sampling import SMOTE
 import joblib
 import time
 from tqdm import tqdm
-import torch
+from sklearn.metrics import accuracy_score, f1_score
+import numpy as np
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import TomekLinks
+from imblearn.under_sampling import EditedNearestNeighbours
+from imblearn.under_sampling import NearMiss
+from imblearn.under_sampling import CondensedNearestNeighbour
+from imblearn.under_sampling import OneSidedSelection
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 
-class NNsmote(nn.Module):
+
+class NNdynamic(nn.Module):
     """
-    NNsmote: A Neural Network which uses SMOTE upsampling from imb-learn in the training pass to handle imbalanced classes. The process upsamples all minority classes
-    to the majority class by synthetically imputing values using a given number of neighbours. The number of neighbors influences the position of the synthetically 
-    created samples of the minority class as SMOTE estimates new points based on existing samples and their nearest neighbors.
+    NNdynamic: A dynamic Neural Network which can implement different sampling techniques from imb-learn in the training pass to handle imbalanced classes. Alternatively,
+    use the standard NN model.The process selects a sampler and implements it within the batches. The batch size influences the potential for sample to fail where it defaults
+    back to a normal sample. In general large batch sizes tend to result in less errors.
 
     Initialisation:
         - n_features (int) The number of features used in the data.
         - fc_size (int) The size of the dense layer which directly impacts complexity into shap calculations (weights | parameters).
         - device (torch.device) The device to calculate the tensor processes (currently only tested with cpu).
-        - save_dir (string) The path to save the NN object. Saves all the attributes and parameters for a given epoch.
+        - save_dir (string) The path to save the NN object. Saves using the torch module as pickle causes errors. Training passes need to be evaluated once complete as the
+          attributes are not reloaded.
         
     Attributes:
         - criterion (nn.BCEWithLogitsLoss) Applies a probability conversion for the output and includes sigmoid activation.
@@ -38,6 +47,15 @@ class NNsmote(nn.Module):
         - test_f1 (float) The test macro f1 score stored for the test run.
         - test_predicted (list) The test predicted output stored as a list.
         - epoch_time (list) The time taken for each epoch using time module.
+        - logits (list) Stores the logits of the last training pass.
+
+    Links:
+        - SMOTE: https://imbalanced-learn.org/dev/references/generated/imblearn.over_sampling.SMOTE.html
+        - Tomek's Links: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.TomekLinks.html
+        - Edited Nearest Neighbour: https://imbalanced-learn.org/dev/references/generated/imblearn.under_sampling.EditedNearestNeighbours.html
+        - Near Miss: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.NearMiss.html
+        - Condensed Nearest Neighbour: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.CondensedNearestNeighbour.html
+        - One Sided Selection: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.OneSidedSelection.html    
 
     NOTE: Additional attributes can be added, For Example: model.fc3 = nn.Linear. This also translates to the forward function by defining a forward function
         and using model.forward = forward.__get__(model).
@@ -60,6 +78,7 @@ class NNsmote(nn.Module):
         self.test_f1 = None
         self.test_predicted = []
         self.epoch_time = []
+        self.logits = []
 
     def forward(self, x):
         """
@@ -96,24 +115,28 @@ class NNsmote(nn.Module):
         f1 = f1_score(labels.cpu(), preds.cpu(), average='weighted')
         return accuracy, f1
 
-    def run(self, train_loader, learning_rate, epochs, save_factor, n_neighbours=2):
+    def run(self, train_loader, learning_rate, epochs, save_factor, sampler, params):
         """
-        run: The run function that trains the model. Includes the SMOTE upsampling for each batch. If the upsampler fails to find more than one class in the batch,
-        the process fails and defaults to the standard sample and prints an error message. This becomes more likely as the batch size is decreased. The training run
-        uses shuffling from a DataLoader which gives a different result for each epoch meaning that even when the model converges, it is still able to get a different 
-        result. Each epoch is saved based on the given save factor and the model can be loaded for each saved epoch to evaluate the result with the test set. The model 
-        uses nn.BCEWithLogitsLoss as the criterion and optim.Adam with the given starting learning rate which is adjusted dynamically by the class. Prints the accuracy 
-        and f1 score for each epoch along with tqm progress bars.
+        run: The run function that trains the model. Includes the option to use sampling methods in the training pass. If the sampler fails to find more than one class 
+        in the batch, the process fails and defaults to the standard sample and prints an error message. This becomes less likely as the batch size is increased. The 
+        training run uses shuffling from a DataLoader which gives a different result for each epoch meaning that even when the model converges, it is still able to get 
+        a different result. Each epoch is saved based on the given save factor and the model can be loaded for each saved epoch to evaluate the result with the test set. 
+        The model uses nn.BCEWithLogitsLoss as the criterion and optim.Adam with the given starting learning rate which is adjusted dynamically by the class. 
+        Prints the accuracy and f1 score for each epoch along with tqm progress bars.
 
         Parameters:
             - train_loader (DataLoader) A DataLoader object which batches and shuffles the data and feeds it into the network.
             - learning_rate (float) The learning rate for the Adam optimiser. A starting learning rate of between 0.05-0.1 has been found to be optimal so far.
             - epochs (int) The number of epochs to train the model on (with a learning rate of 0.1 the model tend to converge on the first epoch).
             - save_factor (int) The factor which decides the interval epoch to save.
-            - n_neighbours (int) The number of neighbours to use for SMOTE upsampling.
+            - sampler (string) The sampler to use for the run (smote, tomeks, edited_nearest, near_miss, condendensed_nearest, one_sided) or None if standard.
+            - params (dict) A dictionary with the mappings for the parameters ({key: value}) of the sampler or None if not sampling.
         
         """
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        if sampler:
+            sampler_class = self.get_sampler(sampler, params)
+
         for epoch in range(epochs):
             start_time = time.time()
             self.train()
@@ -127,28 +150,28 @@ class NNsmote(nn.Module):
 
                 train_seq, train_label = train_seq.to(self.device), train_label.to(self.device)
                 batch_size = len(train_seq)
-                smote_neighbors = min(batch_size, n_neighbours)
+                # Additional check ommited for now - handles using more than 2 neighbours.
+                #s_neighbors = min(batch_size, n_neighbours)
 
-                if batch_size > 1:
+                if batch_size > 1 and sampler:
                     try:
-                        smote = SMOTE(random_state=42, k_neighbors=smote_neighbors)
-                        train_smote, train_label_smote = smote.fit_resample(
+                        train_s, train_label_s = sampler_class.fit_resample(
                             train_seq.cpu().numpy(), train_label.cpu().numpy())
-                        train_smote = torch.tensor(train_smote, dtype=torch.float32).to(self.device)
-                        train_label_smote = torch.tensor(train_label_smote, dtype=torch.float32).to(self.device)
+                        train_s = torch.tensor(train_s, dtype=torch.float32).to(self.device)
+                        train_label_s = torch.tensor(train_label_s, dtype=torch.float32).to(self.device)
                     except ValueError:
-                        print('Error running SMOTE.')
-                        train_smote, train_label_smote = train_seq, train_label
+                        print('Error running sampler. Using normal sample.')
+                        train_s, train_label_s = train_seq, train_label
                 else:
-                    train_smote, train_label_smote = train_seq, train_label
+                    train_s, train_label_s = train_seq, train_label
 
                 optimizer.zero_grad()
-                outputs = self(train_smote)
-                loss = self.criterion(outputs.squeeze(), train_label_smote)
+                outputs = self(train_s)
+                loss = self.criterion(outputs.squeeze(), train_label_s)
                 loss.backward()
                 optimizer.step()
 
-                acc, f1 = self.calculate_accuracy_f1(outputs, train_label_smote)
+                acc, f1 = self.calculate_accuracy_f1(outputs, train_label_s)
                 epoch_loss += loss.item()
                 epoch_accuracy += acc
                 epoch_f1 += f1
@@ -163,6 +186,8 @@ class NNsmote(nn.Module):
 
             if (epoch + 1) % save_factor == 0:
                 self.save_model(epoch + 1)
+            if epoch == epochs - 1:
+                self.logits.extend(outputs.cpu().detach().numpy())
 
     def test(self, test_loader):
         """
@@ -198,33 +223,49 @@ class NNsmote(nn.Module):
 
         print(f"Test Loss: {self.test_loss:.4f}, Test Accuracy: {self.test_accuracy:.4f}, Test F1: {self.test_f1:.4f}")
 
+    def get_sampler(self, sampler, params):
+        """
+        get_sampler: Generates the sampler object if a sampling method is given and adds the parameters. Then returns the object for the training run.
+
+        Parameters:
+            - sampler (string) The sampler to use for the run (smote, tomeks, edited_nearest, near_miss, condendensed_nearest, one_sided) or None if standard.
+            - params (dict) A dictionary with the mappings for the parameters ({key: value}) of the sampler. Must be provided with atleast one default parameter if 
+              default is used.
+
+        """
+        samplers = {
+            'smote': SMOTE,
+            'tomeks': TomekLinks,
+            'edited_nearest': EditedNearestNeighbours,
+            'near_miss': NearMiss,
+            'condensed_nearest': CondensedNearestNeighbour,
+            'one_sided': OneSidedSelection
+            }
+        s = samplers[sampler](**params)
+        return s
+
     def save_model(self, epoch):
         """
-        save_model: Saves the models at each epoch given by the factor in the run method. Saves the whole object including all current attributes using
-        joblib library.
-
+        save_model: Saves the model at each epoch using the torch library.
+        
         Parameters:
             - epoch (int) The current epoch which is being saved.
 
         """
-        path = os.path.join(self.save_dir, f"PB_epoch_{epoch}.joblib")
-        joblib.dump(self, path)
+        path = os.path.join(self.save_dir, f"PB_epoch_{epoch}.pth")
+        torch.save(self.state_dict(), path)
 
     def load_model(self, path):
         """
-        load_model: Load a previously saved model for a given epoch. The epoch is based on the save file name. For Example: PB_epoch_1. To load a model
-        the function requires using an existing or new NNsmote class.
+        load_model: Load a previously saved model for testing.
 
         Parameters:
             - path (string) The path of the saved model to restore.
 
-        Returns:
-            - (NNsmote) The restored trained model.
-
         """
-        model = joblib.load(path)
-        self.to(self.device)
-        return model
+        model = self.__class__(*self.args)
+        model.load_state_dict(torch.load(path))
+        model.to(self.device)
     
 def plot_confusion_matrix(actual_labels, predicted_labels):
     """
@@ -251,6 +292,7 @@ def plot_metrics(metric, epochs, title):
     - metric (list) Training metric (e.g. model.train_loss).
     - epochs (int) The number of epochs.
     - title (string) The title of the plot (imputes the category with type of plot).
+    
     """
     sns.set_theme(style="whitegrid", palette="pastel")
     plt.figure(figsize=(6, 4))
