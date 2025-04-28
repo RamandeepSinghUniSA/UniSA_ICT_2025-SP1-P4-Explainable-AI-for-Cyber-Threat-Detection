@@ -62,7 +62,7 @@ class NNdynamic(nn.Module):
 
     """
     def __init__(self, n_features, fc_size, device, save_dir):
-        super(NNsmote, self).__init__()
+        super(NNdynamic, self).__init__()
         self.criterion = nn.BCEWithLogitsLoss()
         self.device = device
         self.save_dir = save_dir
@@ -263,9 +263,8 @@ class NNdynamic(nn.Module):
             - path (string) The path of the saved model to restore.
 
         """
-        model = self.__class__(*self.args)
-        model.load_state_dict(torch.load(path))
-        model.to(self.device)
+        self.load_state_dict(torch.load(path))
+        self.to(self.device)
     
 def plot_confusion_matrix(actual_labels, predicted_labels):
     """
