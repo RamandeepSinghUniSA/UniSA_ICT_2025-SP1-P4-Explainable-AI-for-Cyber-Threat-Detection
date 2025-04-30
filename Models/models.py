@@ -48,6 +48,8 @@ class NNdynamic(nn.Module):
         - test_predicted (list) The test predicted output stored as a list.
         - epoch_time (list) The time taken for each epoch using time module.
         - logits (list) Stores the logits of the last training pass.
+        - s_X (tensor): Stores the generated dataset as a tensor.
+        - s_y (tensor): Stores the generated actual labels as a tensor.
 
     Links:
         - SMOTE: https://imbalanced-learn.org/dev/references/generated/imblearn.over_sampling.SMOTE.html
@@ -79,6 +81,8 @@ class NNdynamic(nn.Module):
         self.test_predicted = []
         self.epoch_time = []
         self.logits = []
+        self.s_X = None
+        self.s_y = None
 
     def forward(self, x):
         """
@@ -115,7 +119,7 @@ class NNdynamic(nn.Module):
         f1 = f1_score(labels.cpu(), preds.cpu(), average='weighted')
         return accuracy, f1
 
-    def run(self, train_loader, learning_rate, epochs, save_factor, sampler, params):
+    def run(self, train_loader, learning_rate, epochs, save_factor, sampler, params, store_data):
         """
         run: The run function that trains the model. Includes the option to use sampling methods in the training pass. If the sampler fails to find more than one class 
         in the batch, the process fails and defaults to the standard sample and prints an error message. This becomes less likely as the batch size is increased. The 
@@ -164,6 +168,14 @@ class NNdynamic(nn.Module):
                         train_s, train_label_s = train_seq, train_label
                 else:
                     train_s, train_label_s = train_seq, train_label
+
+                if store_data:
+                    if self.s_X is None:
+                        self.s_X = train_s.detach().cpu()
+                        self.s_y = train_label_s.detach().cpu()
+                    else:
+                        self.s_X = torch.cat((self.s_X, train_s.detach().cpu()), dim=0)
+                        self.s_y = torch.cat((self.s_y, train_label_s.detach().cpu()), dim=0)
 
                 optimizer.zero_grad()
                 outputs = self(train_s)
