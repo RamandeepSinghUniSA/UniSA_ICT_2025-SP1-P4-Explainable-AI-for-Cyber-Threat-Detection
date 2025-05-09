@@ -1,77 +1,60 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import os
-import joblib
-import time
-from tqdm import tqdm
-from sklearn.metrics import accuracy_score, f1_score
-import numpy as np
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import TomekLinks
-from imblearn.under_sampling import EditedNearestNeighbours
-from imblearn.under_sampling import NearMiss
-from imblearn.under_sampling import CondensedNearestNeighbour
-from imblearn.under_sampling import OneSidedSelection
-import seaborn as sns
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
-
-
-class NNdynamic(nn.Module):
-    """
-    NNdynamic: A dynamic Neural Network which can implement different sampling techniques from imb-learn in the training pass to handle imbalanced classes. Alternatively,
-    use the standard NN model.The process selects a sampler and implements it within the batches. The batch size influences the potential for sample to fail where it defaults
-    back to a normal sample. In general large batch sizes tend to result in less errors.
-
-    Initialisation:
-        - n_features (int) The number of features used in the data.
-        - fc_size (int) The size of the dense layer which directly impacts complexity into shap calculations (weights | parameters).
-        - device (torch.device) The device to calculate the tensor processes (currently only tested with cpu).
-        - save_dir (string) The path to save the NN object. Saves using the torch module as pickle causes errors. Training passes need to be evaluated once complete as the
-          attributes are not reloaded.
-        
-    Attributes:
-        - criterion (nn.BCEWithLogitsLoss) Applies a probability conversion for the output and includes sigmoid activation.
-        - device (torch.device) The given device for the tensor calculations.
-        - save_dir (string) The given path used to save the model.
-        - fc1 (int) The size of the expanded dense layer.
-        - fc2 (int) The contracted layer (1) for the sigmoid calculation.
-        - activation1 (nn.ReLU) The activation function for the expanded dense layer (deactivates all negatives to 0).
-        - to (self.device) The device that is binded to the NN.
-        - train_loss (list) The training loss stored for each epoch.
-        - train_accuracy (list) The training accuracy stored for each epoch.
-        - train_f1 (list) The training macro f1 score stored for each epoch.
-        - test_loss (float) The test loss stored for the test run.
-        - test_accuracy (float) The test accuracy stored for the test run.
-        - test_f1 (float) The test macro f1 score stored for the test run.
-        - test_predicted (list) The test predicted output stored as a list.
-        - epoch_time (list) The time taken for each epoch using time module.
-        - logits (list) Stores the logits of the last training pass.
-        - s_X (tensor): Stores the generated dataset as a tensor.
-        - s_y (tensor): Stores the generated actual labels as a tensor.
-
-    Links:
-        - SMOTE: https://imbalanced-learn.org/dev/references/generated/imblearn.over_sampling.SMOTE.html
-        - Tomek's Links: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.TomekLinks.html
-        - Edited Nearest Neighbour: https://imbalanced-learn.org/dev/references/generated/imblearn.under_sampling.EditedNearestNeighbours.html
-        - Near Miss: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.NearMiss.html
-        - Condensed Nearest Neighbour: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.CondensedNearestNeighbour.html
-        - One Sided Selection: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.OneSidedSelection.html    
-
-    NOTE: Additional attributes can be added, For Example: model.fc3 = nn.Linear. This also translates to the forward function by defining a forward function
-        and using model.forward = forward.__get__(model).
-
-    """
+class NNdynamicMulti(nn.Module):
     def __init__(self, n_features, fc_size, device, save_dir):
-        super(NNdynamic, self).__init__()
-        self.criterion = nn.BCEWithLogitsLoss()
+        """
+        NNdynamic: A dynamic Neural Network which can implement different sampling techniques from imb-learn in the training pass to handle imbalanced classes. Alternatively,
+        use the standard NN model.The process selects a sampler and implements it within the batches. The batch size influences the potential for sample to fail where it defaults
+        back to a normal sample. In general large batch sizes tend to result in less errors.
+
+        Initialisation:
+            - n_features (int) The number of features used in the data.
+            - fc_size (int) The size of the dense layer which directly impacts complexity into shap calculations (weights | parameters).
+            - device (torch.device) The device to calculate the tensor processes (currently only tested with cpu).
+            - save_dir (string) The path to save the NN object. Saves using the torch module as pickle causes errors. Training passes need to be evaluated once complete as the
+              attributes are not reloaded.
+        
+        Attributes:
+            - criterion (nn.BCEWithLogitsLoss) Applies a probability conversion for the output and includes sigmoid activation.
+            - device (torch.device) The given device for the tensor calculations.
+            - save_dir (string) The given path used to save the model.
+            - fc1 (int) The size of the expanded dense layer.
+            - fc2 (int) The contracted layer (10) for the Softmax calculation.
+            - activation1 (nn.ReLU) The activation function for the expanded dense layer (deactivates all negatives to 0).
+            - to (self.device) The device that is binded to the NN.
+            - train_loss (list) The training loss stored for each epoch.
+            - train_accuracy (list) The training accuracy stored for each epoch.
+            - train_f1 (list) The training macro f1 score stored for each epoch.
+            - test_loss (float) The test loss stored for the test run.
+            - test_accuracy (float) The test accuracy stored for the test run.
+            - test_f1 (float) The test macro f1 score stored for the test run.
+            - test_predicted (list) The test predicted output stored as a list.
+            - epoch_time (list) The time taken for each epoch using time module.
+            - logits (list) Stores the logits of the last training pass.
+            - s_X (tensor): Stores the generated dataset as a tensor.
+            - s_y (tensor): Stores the generated actual labels as a tensor.
+
+        Links:
+            - SMOTE: https://imbalanced-learn.org/dev/references/generated/imblearn.over_sampling.SMOTE.html
+            - Tomek's Links: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.TomekLinks.html
+            - Edited Nearest Neighbour: https://imbalanced-learn.org/dev/references/generated/imblearn.under_sampling.EditedNearestNeighbours.html
+            - Near Miss: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.NearMiss.html
+            - Condensed Nearest Neighbour: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.CondensedNearestNeighbour.html
+            - One Sided Selection: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.OneSidedSelection.html    
+
+        NOTE: Additional attributes can be added, For Example: model.fc3 = nn.Linear. This also translates to the forward function by defining a forward function
+              and using model.forward = forward.__get__(model).
+
+        """
+        super(NNdynamicMulti, self).__init__()
+        
         self.device = device
         self.save_dir = save_dir
+        
         self.fc1 = nn.Linear(n_features, fc_size)
-        self.fc2 = nn.Linear(fc_size, 1)
+        self.fc2 = nn.Linear(fc_size, 10)
         self.activation1 = nn.ReLU()
         self.to(self.device)
+        self.criterion = nn.CrossEntropyLoss()
+        
         self.train_loss = []
         self.train_accuracy = []
         self.train_f1 = []
@@ -86,8 +69,8 @@ class NNdynamic(nn.Module):
 
     def forward(self, x):
         """
-        forward: The forward pass. A basic dense layer specified by the size given in init. Returns a binary sigmoid which calculates the probability
-        that it is either a 0 or a 1 (0.5 > = 1).
+        forward: The forward pass. A basic dense layer specified by the size given in init. Returns the max probability label using
+        Cross Entropy Loss then Softmax.
 
         Parameters:
             - x (tensor) The batch size and the number of features.
@@ -114,9 +97,9 @@ class NNdynamic(nn.Module):
             - f1 (float) The macro f1 score.
 
         """
-        preds = (predictions > 0.5).float()
+        _, preds = torch.max(predictions, dim=1)
         accuracy = accuracy_score(labels.cpu(), preds.cpu())
-        f1 = f1_score(labels.cpu(), preds.cpu(), average='weighted')
+        f1 = f1_score(labels.cpu(), preds.cpu(), average='weighted', labels=np.unique(labels.cpu()))
         return accuracy, f1
 
     def run(self, train_loader, learning_rate, epochs, save_factor, sampler, params, store_data):
@@ -138,6 +121,7 @@ class NNdynamic(nn.Module):
         
         """
         optimizer = optim.Adam(self.parameters(), lr=learning_rate)
+        
         if sampler:
             sampler_class = self.get_sampler(sampler, params)
 
@@ -151,34 +135,24 @@ class NNdynamic(nn.Module):
 
             for _, (train_seq, train_label) in tqdm(
                 enumerate(train_loader), total=num_batches, desc=f"Epoch {epoch+1}/{epochs}", unit="batch"):
-
+                
                 train_seq, train_label = train_seq.to(self.device), train_label.to(self.device)
                 batch_size = len(train_seq)
-                # Additional check ommited for now - handles using more than 2 neighbours.
-                #s_neighbors = min(batch_size, n_neighbours)
 
                 if batch_size > 1 and sampler:
                     try:
                         train_s, train_label_s = sampler_class.fit_resample(
                             train_seq.cpu().numpy(), train_label.cpu().numpy())
                         train_s = torch.tensor(train_s, dtype=torch.float32).to(self.device)
-                        train_label_s = torch.tensor(train_label_s, dtype=torch.float32).to(self.device)
+                        train_label_s = torch.tensor(train_label_s, dtype=torch.long).to(self.device)
                     except ValueError:
                         train_s, train_label_s = train_seq, train_label
                 else:
                     train_s, train_label_s = train_seq, train_label
 
-                if store_data:
-                    if self.s_X is None:
-                        self.s_X = train_s.detach().cpu()
-                        self.s_y = train_label_s.detach().cpu()
-                    else:
-                        self.s_X = torch.cat((self.s_X, train_s.detach().cpu()), dim=0)
-                        self.s_y = torch.cat((self.s_y, train_label_s.detach().cpu()), dim=0)
-
                 optimizer.zero_grad()
                 outputs = self(train_s)
-                loss = self.criterion(outputs.squeeze(), train_label_s)
+                loss = self.criterion(outputs, train_label_s)
                 loss.backward()
                 optimizer.step()
 
@@ -220,12 +194,12 @@ class NNdynamic(nn.Module):
             for test_seq, test_label in tqdm(test_loader, total=num_batches, desc="Testing", unit="batch"):
                 test_seq, test_label = test_seq.to(self.device), test_label.to(self.device)
                 outputs = self(test_seq)
-                loss = self.criterion(outputs.squeeze(), test_label)
+                loss = self.criterion(outputs, test_label)
                 accuracy, f1 = self.calculate_accuracy_f1(outputs, test_label)
                 test_loss += loss.item()
                 test_accuracy += accuracy
                 test_f1 += f1
-                preds = (outputs > 0.5).float()
+                _, preds = torch.max(outputs, dim=1)
                 self.test_predicted.extend(preds.cpu().numpy())
 
         self.test_loss = test_loss / num_batches
