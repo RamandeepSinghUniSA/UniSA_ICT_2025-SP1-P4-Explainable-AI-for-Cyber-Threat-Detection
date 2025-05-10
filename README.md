@@ -21,6 +21,7 @@ T-002B - Test sampled Explainer for sampled Neural Network.
 T-003 - Test sampling methods for Neural Network (after modification).
 T-004 - SHAPselector class (incomplete).
 T-005 - SMOTE upsampling on hard to predict labels.
+T-006 - Kfold validation on SMOTE model.
 
 Models:
 models - Contains the dynamic Neural Network model.
