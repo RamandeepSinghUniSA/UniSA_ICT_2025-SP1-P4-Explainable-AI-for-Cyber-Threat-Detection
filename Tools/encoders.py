@@ -8,12 +8,14 @@ class CorrOnehotEncoder:
     CorrOnehotEncoder: Encodes the given column by creating one-hot encoded columns for categories that have
     a correlation higher than a threshold with the target column.
 
-    Initialisation:
-        - column (pd.Series) The feature column to encode.
-        - target (pd.Series) The target column.
-
     """
     def __init__(self, column, target):
+        """
+        Parameters:
+            - column (pd.Series) The feature column to encode.
+            - target (pd.Series) The target column.
+
+        """
         # Force to string for groups.
         self.column = column.astype(str)
         # Convert to float32 precision to minimise memory load.
@@ -107,12 +109,14 @@ class CorrVarEncoder:
     
     NOTE: It is recommended to include the threshold used in the new value name.
 
-    Initialisation:
-        - data (pd.Series) The column that contains the feature.
-        - target (pd.Series) The target column to draw correlation to.
-
     """
     def __init__(self, column, target):
+        """
+        Parameters:
+            - data (pd.Series) The column that contains the feature.
+            - target (pd.Series) The target column to draw correlation to.
+
+        """
         self.column = column.astype(str)
         self.target = target.astype(np.float32)
 
@@ -197,6 +201,12 @@ class CorrBinEncoder:
 
     """
     def __init__(self, column, target):
+        """
+        Parameters:
+            - data (pd.Series) The column that contains the feature.
+            - target (pd.Series) The target column to draw correlation to.
+            
+        """
         self.column = column.astype(str)
         self.target = target.astype(np.float32)
 

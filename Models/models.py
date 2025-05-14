@@ -168,14 +168,6 @@ class NNdynamic(nn.Module):
                 else:
                     train_s, train_label_s = train_seq, train_label
 
-                if store_data:
-                    if self.s_X is None:
-                        self.s_X = train_s.detach().cpu()
-                        self.s_y = train_label_s.detach().cpu()
-                    else:
-                        self.s_X = torch.cat((self.s_X, train_s.detach().cpu()), dim=0)
-                        self.s_y = torch.cat((self.s_y, train_label_s.detach().cpu()), dim=0)
-
                 optimizer.zero_grad()
                 outputs = self(train_s)
                 loss = self.criterion(outputs.squeeze(), train_label_s)
@@ -199,6 +191,10 @@ class NNdynamic(nn.Module):
                 self.save_model(epoch + 1)
             if epoch == epochs - 1:
                 self.logits.extend(outputs.cpu().detach().numpy())
+
+            if store_data and epoch == epochs - 1:
+                self.s_X = train_s.detach().cpu()
+                self.s_y = train_label_s.detach().cpu()
 
     def test(self, test_loader):
         """

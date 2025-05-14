@@ -14,12 +14,15 @@ class PlotClusters:
     PlotClusters: A class that plots different clusters in a 3-D plot with augmentations. Easily evaluate K-means++ clusters or use DBSCAN to seperate noise from other clusters.
     Use either just the normal Kmeans++ to 3D or DBSCAN to 3D or optionally project it through TSNE. Makes it easy to quickly visualise within label groups.
 
-    Initialisation:
-        - data (pd.DataFrame): The Dataset to analyse which should have the labels filtered out.
-        - scaler_type (string): Either use 'standard' or 'minmax' scaler.
-        - sample_size (int): Sample a smaller size - increasing this to above 10000 significantly increasing computation for TSNE.
     """
     def __init__(self, data, scaler_type, sample_size):
+        """
+        Parameters:
+            - data (pd.DataFrame) The Dataset to analyse which should have the labels filtered out.
+            - scaler_type (string) Either use 'standard' or 'minmax' scaler.
+            - sample_size (int) Sample a smaller size - increasing this to above 10000 significantly increasing computation for TSNE.
+
+        """
         self.data = data.copy()
 
         # NOTE: Scaling seems to have a large impact on the number of clusters that are formed.
@@ -36,12 +39,13 @@ class PlotClusters:
         plot_tsne: Use KMeans++ or DBSCAN clustering and visualisate it using 3 TSNE components in a 3D map. Augments the graph for more clear interpretations.
         
         Parameters:
-        - apply_pca: Whether to apply PCA before t-SNE.
-        - n_clusters: Number of clusters for KMeans++ clustering.
-        - lr: Learning rate for t-SNE.
-        - cluster_type: Clustering type ('kmeans' or 'dbscan').
-        - eps: Epsilon for DBSCAN (a type of threshold for noise which specifies the size of the ring).
-        - min_samples: Minimum amount of neighbouring points or rows to consider.
+        - apply_pca (boolean) Whether to apply PCA before t-SNE (True or False).
+        - n_clusters (int) Number of clusters for KMeans++ clustering.
+        - lr (float): Learning rate for t-SNE.
+        - perplexity (int) The complexity of the clusters (0-100). 30 is generally recommended using values upto 100 seem to give more random and string-like results.
+        - cluster_type (string) Clustering type ('kmeans' or 'dbscan').
+        - eps (float) Epsilon for DBSCAN (a type of threshold for noise which specifies the size of the ring).
+        - min_sample (integer) Minimum amount of neighbouring points or rows to consider for dbscan clustering.
 
         """
         # NOTE: PCA is optional as TSNE can already project the data into 3D space. PCA can speed up the processing for TSNE
@@ -110,8 +114,8 @@ class PlotClusters:
         plot_tsne:  DBSCAN clustering and visualisate it using 3 PCA components in a 3D map. Augments the graph for more clear interpretations.
         
         Parameters:
-        - eps: Epsilon for DBSCAN (a type of threshold for noise which specifies the size of the ring).
-        - min_samples: Minimum amount of neighbouring points for rows to consider.
+        - eps (float) Epsilon for DBSCAN (a type of threshold for noise which specifies the size of the ring).
+        - min_samples (integer) Minimum amount of neighbouring points for rows to consider for dbscan clusters.
 
         """
 
@@ -158,7 +162,7 @@ class PlotClusters:
         plot_kmeans: Kmeans clustering and visualisate it using 3 PCA components in a 3D map. Augments the graph for more clear interpretations.
 
         Parameters:
-            - n_clusters (integer): The number of clusters to try and seperarte using Kmeans++.
+            - n_clusters (integer) The number of clusters to try and seperarte using Kmeans++.
         """
         data = self.data
 
