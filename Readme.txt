@@ -1,27 +1,16 @@
-# UniSA_ICT_2025-SP1-P4-Explainable-AI-for-Cyber-Threat-Detection
-UniSA_ICT_2025-SP1-P4-Explainable-AI-for-Cyber-Threat-Detection
-
-# The main folder contains recent work and project deliverables. The archive contains previous tests and implementations.
-
-# Has Sampling and Encoding techniques and Model implementations into SHAP.
-
-Author: Adi Selak
-
 Main:
-SMOTE NN Model.
-
 Datasets:
 Full-Dataset
 One-hot Encoded Data - correlation encoder (see CorrelationEncoderTests in tools).
-
-Tests:
 T-001 - Test impact of different parameters on shap calculations.
 T-002A - Test sampled Explainer approximation to full data.
 T-002B - Test sampled Explainer for sampled Neural Network.
 T-003 - Test sampling methods for Neural Network (after modification).
 T-004 - SHAPselector class (incomplete).
-T-005 - SMOTE upsampling on hard to predict labels.
-T-006 - Kfold validation on SMOTE model.
+SMOTErf - Test sampling techniques on Random Forest.
+PrimaryBinary - Saved SMOTE model for ensemble.
+SecondaryMulti - Secondary RandomForest model for ensemble (will be changed).
+Ensembler - Combining the two models for final prediction.
 
 Models:
 models - Contains the dynamic Neural Network model.
