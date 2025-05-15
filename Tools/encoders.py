@@ -76,7 +76,7 @@ class CorrOnehotEncoder:
             # If the absolute correlation is greater than the threshold, add to the list.
             if abs(correlation.numpy()) > threshold:
                 ohe_list.append(corr_column)
-                column_names.append(c)
+                column_names.append(f"{self.column.name}_{c}")
                 # Store correlations to sort.
                 correlations.append(abs(correlation.numpy()))
 
