@@ -4,6 +4,7 @@ import shap
 import torch
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 class SHAPmanager:
     """
@@ -56,12 +57,13 @@ class SHAPmanager:
                 self.data = self.data_main.copy()
 
             else:
-                explainer
                 self.explainer = explainer
                 self.shap_values = shap_values
                 self.shap_values_main = shap_values.copy()
                 self.data_main = data.copy()
                 self.data = self.data_main.copy()
+                self.feature_encoder = feature_encoder
+                
         if label_type == 'multi':
             self.explainer  = explainer
             self.data_main = data
@@ -228,20 +230,41 @@ class SHAPmanager:
         """
         shap.bar_plot(abs(self.shap_values).mean(0), self.data, max_display=max_features)
 
-    def plot_dependence(self, variable, n_interaction):
+    def plot_dependence(self, variable, n_interaction=None, colour=None, specific_interaction=None, x_jitter=0,
+    xmin=None, xmax=None, ymin=None, ymax=None, display_features=None):
+        if specific_interaction:
+            si = self.data.columns.get_loc(specific_interaction)
+            if colour:
+                shap.dependence_plot(var, self.shap_values, self.data, interaction_index=si,
+                cmap=cm.get_cmap(colour), show=True, x_jitter=x_jitter, xmin=xmin, xmax=xmax, ymin=ymin,
+                ymax=ymax, display_features=None)
+                return
+            else:
+                shap.dependence_plot(var, self.shap_values, self.data, interaction_index=si,
+                show=True, x_jitter=x_jitter, xmin=xmin, xmax=xmax, ymin=ymin,
+                ymax=ymax, display_features=None)
+                return
+                
         var = self.data.columns.get_loc(variable)
         idx = shap.approximate_interactions(var, self.shap_values, self.data)
         if (n_interaction == 1 or n_interaction % 2 == 0):
             if n_interaction == 1:
-                shap.dependence_plot(var, self.shap_values, self.data, interaction_index=idx[0])
+                shap.dependence_plot(var, self.shap_values, self.data, interaction_index=idx[0], 
+                x_jitter=x_jitter, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, display_features=None)
             else:
                 n_rows = n_interaction / 2
                 fig, axes = plt.subplots(nrows=int(n_rows), ncols=2, figsize=(14, 6 * n_rows))
                 axes = axes.flatten()
 
                 for i in range(n_interaction):
-                    shap.dependence_plot(var, self.shap_values, self.data,
-                                         interaction_index=idx[i], ax=axes[i], show=False)
+                    if colour:
+                        shap.dependence_plot(var, self.shap_values, self.data,
+                        interaction_index=idx[i], ax=axes[i], show=False, cmap=cm.get_cmap(colour), 
+                        x_jitter=x_jitter, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, display_features=None)
+                    else:
+                        shap.dependence_plot(var, self.shap_values, self.data,
+                        interaction_index=idx[i], ax=axes[i], show=False, x_jitter=x_jitter, 
+                        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, display_features=None)
                           
                 plt.tight_layout()
                 plt.show()
