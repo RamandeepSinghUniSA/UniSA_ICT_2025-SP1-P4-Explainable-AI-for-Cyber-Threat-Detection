@@ -54,11 +54,6 @@ class NNdynamic(nn.Module):
     Links:
         - SMOTE: https://imbalanced-learn.org/dev/references/generated/imblearn.over_sampling.SMOTE.html
         - Tomek's Links: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.TomekLinks.html
-        - Edited Nearest Neighbour: https://imbalanced-learn.org/dev/references/generated/imblearn.under_sampling.EditedNearestNeighbours.html
-        - Near Miss: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.NearMiss.html
-        - Condensed Nearest Neighbour: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.CondensedNearestNeighbour.html
-        - One Sided Selection: https://imbalanced-learn.org/stable/references/generated/imblearn.under_sampling.OneSidedSelection.html    
-
     NOTE: Additional attributes can be added, For Example: model.fc3 = nn.Linear. This also translates to the forward function by defining a forward function
         and using model.forward = forward.__get__(model).
 
@@ -154,10 +149,8 @@ class NNdynamic(nn.Module):
 
                 train_seq, train_label = train_seq.to(self.device), train_label.to(self.device)
                 batch_size = len(train_seq)
-                # Additional check ommited for now - handles using more than 2 neighbours.
-                #s_neighbors = min(batch_size, n_neighbours)
 
-                if batch_size > 1 and sampler:
+                if batch_size > 1 and sampler is not None:
                     try:
                         train_s, train_label_s = sampler_class.fit_resample(
                             train_seq.cpu().numpy(), train_label.cpu().numpy())
@@ -242,11 +235,7 @@ class NNdynamic(nn.Module):
         """
         samplers = {
             'smote': SMOTE,
-            'tomeks': TomekLinks,
-            'edited_nearest': EditedNearestNeighbours,
-            'near_miss': NearMiss,
-            'condensed_nearest': CondensedNearestNeighbour,
-            'one_sided': OneSidedSelection
+            'tomeks': TomekLinks
             }
         s = samplers[sampler](**params)
         return s
