@@ -1,36 +1,31 @@
 # UniSA_ICT_2025-SP1-P4-Explainable-AI-for-Cyber-Threat-Detection
 UniSA_ICT_2025-SP1-P4-Explainable-AI-for-Cyber-Threat-Detection
 
-# The main folder contains recent work and project deliverables. The archive contains previous tests and implementations.
-
 # Has Sampling and Encoding techniques and Model implementations into SHAP.
 
 Authors and Collaborators: Adi Selak, Mathew Coleman, Scott Chandler, Ramandeep Singh, Edrick Laitly
 
-Main:
-SMOTE NN Model.
-
 Datasets:
-Full-Dataset
-One-hot Encoded Data - correlation encoder (see CorrelationEncoderTests in tools).
+USNW-NB15 Dataset.
 
 Tests:
 T-001 - Test impact of different parameters on shap calculations.
 T-002A - Test sampled Explainer approximation to full data.
 T-002B - Test sampled Explainer for sampled Neural Network.
 T-003 - Test sampling methods for Neural Network (after modification).
-T-004 - SHAPselector class (incomplete).
-T-005 - SMOTE upsampling on hard to predict labels.
-T-006 - Kfold validation on SMOTE model.
+T-004 - Original Correlation Encoder used for dataset in Neural Network Model.
+T-005 - Kmeans and DBScan tests on Normal labels in dataset.
+T-006 - Optimisation and Kfold validation on Neural Network model.
 
 Models:
 models - Contains the dynamic Neural Network model.
-saved_models: saved models
+saved_models: saved models used for testing, user guides, and evaluations.
 
-Reports: Old reports from capstone 1.
+Reports: Evaluations using SHAP on SMOTE Model and Multiclass classifier Tree Model.
 
 Tools: 
 encoder - for encoding data using correlation
 data_visualiser - A tool for visualising within label data.
+shapmanager - Used to steamline shap operations with additional grouping functions.
 
-Archive: Older tests kept for historic purpose.
+UserGuides: Example code of SMOTE and multi-class Tree with the shap manager class.

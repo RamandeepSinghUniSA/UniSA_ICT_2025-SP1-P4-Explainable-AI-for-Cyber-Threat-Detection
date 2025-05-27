@@ -1,4 +1,0 @@
-fc_size = 128
-n_features = original NN set (322 I think).
-learning_rate = 0.1
-epochs = 5
